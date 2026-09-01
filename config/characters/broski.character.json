@@ -1,0 +1,30 @@
+{
+  "id": "broski",
+  "dna": {
+    "name": "BROski",
+    "age": "late 20s",
+    "build": "athletic, average height",
+    "face": "oval face, strong jaw, warm brown eyes, short neat beard",
+    "hair": "short dark hair, textured crop",
+    "skinTone": "light",
+    "distinguishing": ["small scar on left eyebrow", "silver ring on right hand"]
+  },
+  "voiceId": "",
+  "referencePack": [
+    { "path": "refs/broski-front.png", "angle": "front", "note": "neutral, good light" },
+    { "path": "refs/broski-three-quarter.png", "angle": "three-quarter" },
+    { "path": "refs/broski-profile.png", "angle": "profile" }
+  ],
+  "wardrobe": [
+    {
+      "id": "zone",
+      "description": "black hoodie with neon purple Hyperfocus Zone logo",
+      "appliesTo": ["cinematic", "b_roll"]
+    },
+    {
+      "id": "presenter",
+      "description": "clean dark tee, studio setting",
+      "appliesTo": ["talking_head"]
+    }
+  ]
+}
