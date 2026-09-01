@@ -10,11 +10,14 @@ echo "🧪 BROski Void Video Agent V2 — pipeline check"
 echo ""
 
 echo "1️⃣  Local tooling"
-command -v docker >/dev/null 2>&1 && ok "docker found" || bad "docker not found"
+command -v docker >/dev/null 2>&1 && ok "docker found" || echo "   ⚠️  docker not found (needed unless you run everything locally)"
 command -v ffmpeg >/dev/null 2>&1 && ok "ffmpeg found" || bad "ffmpeg not found (brew install ffmpeg / apt install ffmpeg)"
 command -v node  >/dev/null 2>&1 && ok "node found" || bad "node not found (need v20+)"
+command -v python3 >/dev/null 2>&1 && ok "python3 found" || bad "python3 not found (avatar layer needs it for local runs)"
+[[ -d node_modules ]] && ok "node_modules present" || echo "   ⚠️  node_modules missing — run: npm install (local runs only)"
 
 echo "2️⃣  Config"
+[[ -f config/pricing.json ]] && ok "config/pricing.json present" || bad "config/pricing.json missing — cost estimates will read \$0"
 if [[ -f .env ]]; then
   ok ".env exists"
   set -a; source .env; set +a

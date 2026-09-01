@@ -11,3 +11,6 @@ workspace/*.mp4
 __pycache__/
 .DS_Store
 *.log
+
+# local tooling state
+.remember/

@@ -1,0 +1,19 @@
+{
+  "_comment": "SINGLE SOURCE OF TRUTH for model pricing. model-selector.ts loads this at runtime; the README tables are generated from these numbers by hand — keep them in sync. usdPerSec is null for credit-based providers (HeyGen).",
+  "_warning": "UNVERIFIED against the live MuAPI docs. Endpoint paths AND per-second rates change often. Re-check https://muapi.ai/docs/video-generation before your first paid run and update lastVerified.",
+  "lastVerified": "2026-07-01",
+  "gbpPerUsd": 0.79,
+  "models": {
+    "wan-local":        { "usdPerSec": 0,     "maxDurationSec": 5 },
+    "musetalk-local":   { "usdPerSec": 0,     "maxDurationSec": 60 },
+    "seedance-2.0-mini":{ "usdPerSec": 0.025, "maxDurationSec": 10 },
+    "pixverse-v6":      { "usdPerSec": 0.033, "maxDurationSec": 8 },
+    "vidu-q3":          { "usdPerSec": 0.04,  "maxDurationSec": 8 },
+    "veo-3.1-lite":     { "usdPerSec": 0.04,  "maxDurationSec": 8 },
+    "veo-3.1-fast":     { "usdPerSec": 0.15,  "maxDurationSec": 8 },
+    "kling-3.0":        { "usdPerSec": 0.1,   "maxDurationSec": 10 },
+    "seedance-2.5":     { "usdPerSec": 0.12,  "maxDurationSec": 30 },
+    "veo-3.1-quality":  { "usdPerSec": 0.4,   "maxDurationSec": 8 },
+    "heygen":           { "usdPerSec": null,  "maxDurationSec": 300 }
+  }
+}

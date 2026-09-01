@@ -32,20 +32,38 @@
 
 ## 🚀 Quick Start
 
+**You need:** Docker (all cloud modes run in the container) · **or** for local dev without Docker:
+Node 20+, Python 3.10+, and `ffmpeg` on PATH. FREE mode additionally needs an NVIDIA GPU + ComfyUI.
+
+**Windows:** the `scripts/*.sh` helpers need **WSL2 or Git Bash** — plain PowerShell/CMD won't run them.
+Either work inside WSL, or skip the shell scripts and call the underlying commands directly
+(`docker compose ...` / `npm install && npx tsx agent-router/index.ts ...`). The `chmod` line below is a
+no-op on Windows — harmless to skip.
+
 ```bash
 git clone https://github.com/welshDog/BROSKI-VOID-VIDEO-AGENT-V2.git
 cd BROSKI-VOID-VIDEO-AGENT-V2
 cp .env.example .env          # ← fill in MUAPI_KEY + your HeyGen keys
-chmod +x scripts/*.sh publisher/*.sh polish/*.sh avatar/*.py
+chmod +x scripts/*.sh publisher/*.sh polish/*.sh avatar/*.py   # macOS/Linux/WSL only
+
+npm install                   # local (non-Docker) runs need this once
 
 ./scripts/test-pipeline.sh    # health-check every layer
-./scripts/start.sh            # boot the Docker stack
+./scripts/start.sh            # boot the cloud stack  (add --local for the FREE GPU lane)
 
 # First video 🎬
 ./scripts/make-video.sh "neon dragon flying over Nexus City at night" --mode CHEAP
 ```
 
+`make-video.sh` runs inside Docker when it's available and falls back to local `npx tsx` otherwise.
 Generated files land in `output/` — the master clip plus `-9x16`, `-16x9` and `-1x1` variants.
+
+**What has to be running, per mode:**
+
+| Mode | Needs running |
+|---|---|
+| CHEAP / QUALITY / PRO | nothing but `MUAPI_KEY` (+ HeyGen keys for talking heads) — cloud does the work |
+| FREE | local ComfyUI on `:8188` with a Wan 2.2 workflow + NVIDIA GPU (`./scripts/start.sh --local`) |
 
 ---
 
@@ -68,7 +86,10 @@ SCENE 4 (8s) ANIME: the protagonist powers up, electric blue aura, city skyline 
 
 ## 💰 Budget Modes
 
-Per-second API pricing verified July 2026 — see [Sources](#-sources--inspiration).
+> ⚠️ **Rates below are UNVERIFIED and go stale fast.** They mirror `config/pricing.json`
+> (the single source of truth the router actually reads) — last checked **2026-07-01**.
+> £ figures use `gbpPerUsd` from that file (0.79). Re-check [muapi.ai/docs](https://muapi.ai/docs/video-generation)
+> and update `config/pricing.json` before any paid run — the router picks the numbers up from there.
 
 | Mode | What it uses | Est. cost / 30s video |
 |---|---|---|
@@ -91,7 +112,9 @@ Talking heads always use HeyGen (credit-based) except FREE mode, which falls bac
 | b-roll | Wan 2.2 local | PixVerse V6 | Kling 3.0 | Kling 3.0 |
 | title card | Wan 2.2 local | PixVerse V6 | Veo 3.1 Lite | Veo 3.1 Fast |
 
-\* falls back to HeyGen for now. The whole table is plain data in `agent-router/model-selector.ts` — edit it freely.
+\* falls back to HeyGen for now. The routing table is plain data in `agent-router/model-selector.ts` —
+edit it freely. Per-second rates + max durations live in `config/pricing.json`; the router loads them at
+runtime, so change prices there (not in the `.ts`).
 
 ---
 
@@ -101,7 +124,9 @@ Talking heads always use HeyGen (credit-based) except FREE mode, which falls bac
 BROSKI-VOID-VIDEO-AGENT-V2/
 ├── docker-compose.yml        # the whole stack (cloud + optional GPU lane)
 ├── .env.example              # all API keys template
-├── config/style-presets.json # per-project look (Hyperfocus / HyperCode / anime)
+├── config/
+│   ├── style-presets.json    # per-project look (Hyperfocus / HyperCode / anime)
+│   └── pricing.json          # per-second rates + GBP rate — SINGLE SOURCE OF TRUTH
 │
 ├── agent-router/             # 🧠 THE BRAIN
 │   ├── index.ts              # pipeline orchestrator (CLI)
