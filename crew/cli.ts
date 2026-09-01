@@ -2,7 +2,7 @@
 /**
  * 🎬 V3 Crew CLI — the entry point for the autonomous crew.
  *
- *   npx tsx crew/cli.ts --script workspace/ep1.md --mode CHEAP --character broski --yes
+ *   npx tsx crew/cli.ts --script workspace/ep1.md --mode CHEAP --character broski --yes --sound
  *   npx tsx crew/cli.ts --resume job-xxxx
  *   npx tsx crew/cli.ts --new-character zed
  */
@@ -26,6 +26,7 @@ async function main(): Promise<void> {
       'new-character': { type: 'string' },
       jobs: { type: 'boolean', default: false },
       yes: { type: 'boolean', default: false },
+      sound: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
   })
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
     preset: String(args.preset),
     aspect: String(args.aspect),
     scriptPath: String(args.script ?? ''),
+    withSound: Boolean(args.sound),
   }
 
   if (args.resume) return void (await resumeCrew(String(args.resume), opts))
@@ -67,7 +69,7 @@ async function main(): Promise<void> {
 }
 
 function printUsage(): void {
-  console.log(`\n🎬 V3 Crew CLI\n\n  --script <file> --mode <MODE> [--character <id>] [--yes]\n  --resume <jobId>\n  --new-character <id>\n  --jobs\n\nTry: npx tsx crew/cli.ts --script workspace/ep1.md --character broski\n`)
+  console.log(`\n🎬 V3 Crew CLI\n\n  --script <file> --mode <MODE> [--character <id>] [--yes] [--sound]\n  --resume <jobId>\n  --new-character <id>\n  --jobs\n\nTry: npx tsx crew/cli.ts --script workspace/ep1.md --character broski\n`)
 }
 
 main().catch(err => { console.error('❌', err?.message ?? err); process.exit(1) })

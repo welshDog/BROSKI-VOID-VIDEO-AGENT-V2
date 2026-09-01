@@ -12,8 +12,8 @@ Wired against the [V3 Master Plan](https://github.com/welshDog/BROSKI-VOID-VIDEO
 | `critic.ts` | 3 👁️ VLM image-grid critic | ✅ |
 | `character-bible.ts` | 4 🧬 4-layer identity | ✅ |
 | `continuity.ts` | 5 🔗 last-frame → first-frame | ✅ |
-| sound designer | 6 🔊 | 🔧 |
-| eval harness | 7 📊 | 🔧 |
+| `sound-designer.ts` | 6 🔊 TTS + SFX + ducking | ✅ |
+| `eval-harness.ts` | 7 📊 per-shot metrics + report | ✅ |
 | `state.ts` | 8 💾 folder-first job.json | ✅ foundation |
 | MCP / UI | 9–10 | 🔧 |
 
@@ -31,6 +31,10 @@ for each shot:
   accept? ─yes─▶ extract last frame ─▶ next shot
       │ no + notes (max N retries, £ cap)
       └─────▶ GENERATE again
+
+AFTER ALL SHOTS:
+  SOUND DESIGNER → final mix
+  EVAL HARNESS → CSV + JSON report
 ```
 
 ## 📂 Production state
@@ -40,14 +44,16 @@ runs/<jobId>/
 ├── job.json
 ├── shots/          # attempts + last-frame PNGs
 ├── refs/
-└── final/
+├── final/
+├── audio/          # VO + SFX + mix
+└── eval.csv / eval.json
 ```
 
 ## 🎬 Run the North Star script
 
 ```bash
 git checkout v3/crew
-npx tsx crew/cli.ts --script workspace/ep1.md --character broski
+npx tsx crew/cli.ts --script workspace/ep1.md --character broski --sound
 # dry-run prints the Director's shot list. Add --yes to spend.
 ```
 
@@ -55,4 +61,4 @@ Offline / £0: `CRITIC_MOCK=1` (default) + no Director key → regex plan + mock
 
 ## Env
 
-See `.env.example` — `CRITIC_*`, `DIRECTOR_*`, `MAX_COST_GBP`, `MAX_RETRIES_PER_SHOT`, `ACCEPT_SCORE`.
+See `.env.example` — `CRITIC_*`, `DIRECTOR_*`, `TTS_*`, `EVAL_*`, `MAX_COST_GBP`, `MAX_RETRIES_PER_SHOT`, `ACCEPT_SCORE`.

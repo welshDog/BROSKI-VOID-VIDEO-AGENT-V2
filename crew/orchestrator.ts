@@ -9,6 +9,7 @@
  *   - ACCEPT_SCORE
  *
  * On accept: extract last frame so the next chained shot can lock identity (Thread 5).
+ * After all shots: run sound designer (Thread 6) and eval harness (Thread 7).
  */
 import * as path from 'node:path'
 import type { BudgetMode } from '../agent-router/model-selector.js'
@@ -21,6 +22,8 @@ import { critique } from './critic.js'
 import { buildShotContext } from './character-bible.js'
 import { renderShot } from './render-bridge.js'
 import { extractLastFrame } from './continuity.js'
+import { designSound } from './sound-designer.js'
+import { evaluateJob, saveReport } from './eval-harness.js'
 
 export interface CrewOptions {
   mode: BudgetMode
@@ -30,6 +33,7 @@ export interface CrewOptions {
   budgetCapGBP?: number
   maxRetriesPerShot?: number
   acceptScore?: number
+  withSound?: boolean
 }
 
 export async function runCrew(shots: ShotState[], opts: CrewOptions): Promise<JobState> {
@@ -61,6 +65,27 @@ export async function runCrew(shots: ShotState[], opts: CrewOptions): Promise<Jo
   saveJob(state)
   const accepted = state.shots.filter(s => s.status === 'accepted' || s.status === 'done').length
   console.log(`\n🎬 Crew finished — ${accepted}/${state.shots.length} shots accepted · spent $${state.spentUSD.toFixed(3)} · job ${state.jobId}`)
+
+  if (opts.withSound) {
+    try {
+      console.log('\n🔊 Running sound designer...')
+      const script = fs.readFileSync(opts.scriptPath, 'utf-8')
+      const { mixPath } = await designSound(state, script, { outDir: jobDir(state.jobId) })
+      console.log(`   🎧 Final mix: ${mixPath}`)
+    } catch (err: unknown) {
+      console.log(`   ⚠️  Sound designer skipped: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+
+  try {
+    console.log('\n📊 Running eval harness...')
+    const report = evaluateJob(state)
+    saveReport(report, jobDir(state.jobId))
+    console.log(`   📈 Average score: ${report.averages.score.toFixed(2)}/10`)
+  } catch (err: unknown) {
+    console.log(`   ⚠️  Eval harness skipped: ${err instanceof Error ? err.message : err}`)
+  }
+
   return state
 }
 
