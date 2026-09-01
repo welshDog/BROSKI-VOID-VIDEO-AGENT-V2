@@ -1,9 +1,10 @@
 /**
  * 🔌 Render Bridge — connects the V3 crew to V2's generators without changing them.
  *
- * The orchestrator shouldn't know HOW a render happens; it asks the bridge. This is
- * where character reference images get injected per-model, and where V2's budget
- * modes / router stay untouched.
+ * Injects:
+ *   - character reference images (Seedance 2.5 refs / Kling first-frame)
+ *   - chained last-frame from the previous accepted shot (Thread 5)
+ *   - critic retry notes into the prompt
  */
 import * as path from 'node:path'
 import type { ModelId } from '../agent-router/model-selector.js'
@@ -19,6 +20,7 @@ export interface RenderRequest {
   shot: ShotState
   prompt: string
   referenceImages: string[]
+  firstFramePath?: string
   seed: number
   prevNotes?: string
   outDir: string
@@ -29,7 +31,6 @@ export interface RenderResult { file: string; costUSD: number }
 export async function renderShot(req: RenderRequest): Promise<RenderResult> {
   const { model, shot } = req
 
-  // 🗣️ Avatar lane — unchanged from V2 (HeyGen)
   if (model === 'heygen' || model === 'musetalk-local') {
     const { execFile } = await import('node:child_process')
     const { promisify } = await import('node:util')
@@ -38,14 +39,12 @@ export async function renderShot(req: RenderRequest): Promise<RenderResult> {
     return { file: dest, costUSD: 0 }
   }
 
-  // 🦙 FREE local lane — Wan 2.2 via ComfyUI
   if (model === 'wan-local') {
     const shotLike = { ...shot, videoPrompt: req.prompt, aspectRatio: '9:16', description: shot.heading }
     const file = await generateWanLocal(shotLike as any, req.outDir)
     return { file, costUSD: 0 }
   }
 
-  // ☁️ Cloud lane via MuAPI — prompt enriched with the critic's retry notes
   const prompt = req.prevNotes ? `${req.prompt}\n\nCRITICAL FIX from last attempt: ${req.prevNotes}` : req.prompt
   const shotLike = {
     ...shot,
@@ -58,15 +57,16 @@ export async function renderShot(req: RenderRequest): Promise<RenderResult> {
   let built: { endpoint: string; payload: Record<string, unknown> }
   if (model.startsWith('seedance')) {
     built = buildSeedancePayload(model as 'seedance-2.0-mini' | 'seedance-2.5', shotLike as any)
-    // 🧬 Inject character references — Seedance 2.5 takes up to 50 multimodal refs
-    if (req.referenceImages.length) {
-      built.payload.references = req.referenceImages.map(url => ({ type: 'image', url }))
-    }
+    const refs = [
+      ...req.referenceImages.map(url => ({ type: 'image', url })),
+      ...(req.firstFramePath ? [{ type: 'image', url: req.firstFramePath }] : []),
+    ]
+    if (refs.length) built.payload.references = refs
+    if (req.firstFramePath) built.payload.first_frame = req.firstFramePath
     built.payload.seed = req.seed
   } else if (model.startsWith('kling')) {
     built = buildKlingPayload(shotLike as any)
-    // 🔗 Kling loves a first-frame still for identity lock
-    if (req.referenceImages.length) built.payload.image = req.referenceImages[0]
+    built.payload.image = req.firstFramePath ?? req.referenceImages[0]
   } else if (model.startsWith('veo')) {
     built = buildVeoPayload(model as 'veo-3.1-lite' | 'veo-3.1-fast' | 'veo-3.1-quality', shotLike as any)
   } else {

@@ -2,7 +2,7 @@
  * 💾 Production State — folder-first, one job.json per run.
  *
  * The single source of truth every agent reads and writes. Resumable: if the
- * process dies mid-run, reloadJob() picks up exactly where it left off.
+ * process dies mid-run, loadJob() picks up exactly where it left off.
  * Replayable: every prompt, seed, model and cost is stored, so you can
  * re-render one shot with everything else frozen.
  *
@@ -13,24 +13,24 @@ import * as path from 'node:path'
 import type { BudgetMode, SceneType } from '../agent-router/model-selector.js'
 
 export type ShotStatus =
-  | 'planned'      // Director has a plan, nothing generated yet
-  | 'generating'   // a render is in flight
-  | 'critiquing'   // clip exists, critic is scoring
-  | 'accepted'     // critic score >= ACCEPT_SCORE
-  | 'rejected'     // critic rejected, notes attached, will retry
-  | 'exhausted'    // hit retry budget — human review needed
-  | 'done'         // polished + exported
+  | 'planned'
+  | 'generating'
+  | 'critiquing'
+  | 'accepted'
+  | 'rejected'
+  | 'exhausted'
+  | 'done'
 
 export interface CriticVerdict {
   attempt: number
-  score: number              // 0–10 overall
-  adherence: number          // prompt adherence 0–10
-  artifacts: number          // artifact cleanliness 0–10 (10 = no artifacts)
-  characterMatch: number     // vs character bible 0–10
-  continuity: number         // vs previous shot 0–10
-  notes: string              // specific, actionable feedback for the retry
+  score: number
+  adherence: number
+  artifacts: number
+  characterMatch: number
+  continuity: number
+  notes: string
   accepted: boolean
-  costUSD: number            // what this critique call cost
+  costUSD: number
 }
 
 export interface ShotAttempt {
@@ -50,8 +50,9 @@ export interface ShotState {
   prompt: string
   negativePrompt: string
   durationSec: number
-  castIds: string[]          // which characters appear (from the bible)
-  continuityFrom: number | null  // shot id this one chains from (last-frame link)
+  castIds: string[]
+  continuityFrom: number | null
+  lastFramePath: string | null
   status: ShotStatus
   attempts: ShotAttempt[]
 }
@@ -120,7 +121,6 @@ export function listJobs(): string[] {
   return fs.readdirSync(RUNS_DIR).filter(d => fs.existsSync(path.join(RUNS_DIR, d, 'job.json')))
 }
 
-/** Total £ guardrail — checked before EVERY generation, not just at the edge. */
 export function overBudget(state: JobState, usdToGbp = 0.79): boolean {
   return state.spentUSD * usdToGbp >= state.budgetCapGBP
 }

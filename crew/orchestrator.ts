@@ -1,17 +1,14 @@
 /**
  * 🧠 The Orchestrator — the crew loop as an explicit finite-state machine (Thread 1).
  *
- * FSM, not a while-loop-in-trench-coat: every shot moves through named states and
- * the transitions are data, so it's resumable, debuggable, and you can see exactly
- * where a run is. (FSMs/statecharts are the 2026 standard for agent orchestration.)
+ * Per shot:  planned → generating → critiquing → (accepted | rejected→retry | exhausted)
  *
- * Per shot:  planned → generating → critiquing → (accepted → done) | (rejected →
- *            generating …) | (exhausted — human review)
+ * Guardrails in the CORE LOOP:
+ *   - MAX_RETRIES_PER_SHOT
+ *   - MAX_COST_GBP checked before EVERY generation
+ *   - ACCEPT_SCORE
  *
- * Guardrails enforced HERE, in the core loop (the cross-cutting rule):
- *   - MAX_RETRIES_PER_SHOT — no infinite reject loops
- *   - MAX_COST_GBP — hard £ cap checked before EVERY generation
- *   - ACCEPT_SCORE — the "good enough" bar
+ * On accept: extract last frame so the next chained shot can lock identity (Thread 5).
  */
 import * as path from 'node:path'
 import type { BudgetMode } from '../agent-router/model-selector.js'
@@ -23,6 +20,7 @@ import {
 import { critique } from './critic.js'
 import { buildShotContext } from './character-bible.js'
 import { renderShot } from './render-bridge.js'
+import { extractLastFrame } from './continuity.js'
 
 export interface CrewOptions {
   mode: BudgetMode
@@ -53,7 +51,7 @@ export async function runCrew(shots: ShotState[], opts: CrewOptions): Promise<Jo
   for (const shot of state.shots) {
     await runShotFSM(state, shot)
     if (state.status === 'budget_exceeded') {
-      console.error(`\n💸 Budget cap hit (£${state.budgetCapGBP}) — stopping. Resume later with: crew resume ${state.jobId}`)
+      console.error(`\n💸 Budget cap hit (£${state.budgetCapGBP}) — resume later: npx tsx crew/cli.ts --resume ${state.jobId}`)
       saveJob(state)
       return state
     }
@@ -66,17 +64,18 @@ export async function runCrew(shots: ShotState[], opts: CrewOptions): Promise<Jo
   return state
 }
 
-/** The per-shot state machine. Each branch is one transition. */
 async function runShotFSM(state: JobState, shot: ShotState): Promise<void> {
   shot.status = 'planned'
   saveJob(state)
   let prevNotes: string | undefined
 
+  const prev = shot.continuityFrom != null ? state.shots.find(s => s.id === shot.continuityFrom) : undefined
+  const firstFramePath = prev?.lastFramePath ?? undefined
+  if (firstFramePath) console.log(`   🔗 Shot ${shot.id} chains from ${prev?.id} via ${path.basename(firstFramePath)}`)
+
   while (true) {
-    // ── GUARDRAIL: budget (checked before every single generation) ──
     if (overBudget(state)) { state.status = 'budget_exceeded'; saveJob(state); return }
 
-    // ── GUARDRAIL: retry budget ──
     if (shot.attempts.length >= state.maxRetriesPerShot) {
       shot.status = 'exhausted'
       saveJob(state)
@@ -84,7 +83,6 @@ async function runShotFSM(state: JobState, shot: ShotState): Promise<void> {
       return
     }
 
-    // ── STATE: generating ──
     shot.status = 'generating'
     saveJob(state)
     const attemptNo = shot.attempts.length + 1
@@ -92,7 +90,6 @@ async function runShotFSM(state: JobState, shot: ShotState): Promise<void> {
     const modelLabel = MODEL_CATALOG[model]?.label ?? model
     console.log(`   🎬 Shot ${shot.id} [${shot.type}] attempt ${attemptNo}/${state.maxRetriesPerShot} → ${modelLabel}`)
 
-    // Inject character bible (identity via references, prompt stays scene-led)
     const ctx = buildShotContext(shot.prompt, shot.castIds, shot.type)
 
     let file: string | null = null
@@ -104,8 +101,9 @@ async function runShotFSM(state: JobState, shot: ShotState): Promise<void> {
         shot,
         prompt: ctx.prompt,
         referenceImages: ctx.referenceImages,
+        firstFramePath,
         seed,
-        prevNotes,           // ← the retry uses the critic's notes
+        prevNotes,
         outDir: path.join(jobDir(state.jobId), 'shots'),
       })
       file = out.file; cost = out.costUSD
@@ -116,9 +114,8 @@ async function runShotFSM(state: JobState, shot: ShotState): Promise<void> {
     shot.attempts.push({ attempt: attemptNo, prompt: ctx.prompt, model, seed, file, costUSD: cost })
     saveJob(state)
 
-    if (!file) { prevNotes = 'generation call failed'; continue } // transition: back to generating
+    if (!file) { prevNotes = 'generation call failed'; continue }
 
-    // ── STATE: critiquing ──
     shot.status = 'critiquing'
     saveJob(state)
     const verdict = await critique(file, shot, state.acceptScore, prevNotes)
@@ -127,20 +124,25 @@ async function runShotFSM(state: JobState, shot: ShotState): Promise<void> {
     saveJob(state)
     console.log(`      👁️  Critic ${verdict.score}/10 — ${verdict.accepted ? '✅ accepted' : `↩️  rejected: ${verdict.notes}`}`)
 
-    // ── TRANSITION: accept or reject ──
     if (verdict.accepted) {
       shot.status = 'accepted'
+      try {
+        shot.lastFramePath = await extractLastFrame(
+          file,
+          path.join(jobDir(state.jobId), 'shots', `shot-${shot.id}-last.png`),
+        )
+      } catch (err: unknown) {
+        console.log(`      ⚠️  last-frame extract skipped: ${err instanceof Error ? err.message : err}`)
+      }
       saveJob(state)
       return
     }
     shot.status = 'rejected'
     prevNotes = verdict.notes
     saveJob(state)
-    // loop continues → back to the budget/retry guardrails → generating
   }
 }
 
-/** Resume a crashed/paused run from its job.json. */
 export async function resumeCrew(jobId: string, opts: CrewOptions): Promise<JobState> {
   const { loadJob } = await import('./state.js')
   const state = loadJob(jobId)
