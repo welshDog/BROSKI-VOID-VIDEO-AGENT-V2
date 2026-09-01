@@ -1,0 +1,18 @@
+{
+  "hyperfocus-zone": {
+    "styleSuffix": "cyberpunk aesthetic, neon-lit Nexus City at night, purple and teal palette, volumetric lighting, rain-slicked streets, glitch accents, cinematic depth of field, 4k",
+    "negativePrompt": "blurry, low quality, watermark, text artifacts, distorted faces, extra limbs"
+  },
+  "hypercode": {
+    "styleSuffix": "clean modern tech aesthetic, dark mode UI, terminal green accents, minimal composition, soft studio lighting, crisp focus",
+    "negativePrompt": "cluttered, low quality, watermark, blurry"
+  },
+  "anime": {
+    "styleSuffix": "high-quality anime style, vibrant colors, dynamic composition, detailed background art, studio animation quality, dramatic lighting",
+    "negativePrompt": "3d render, photorealistic, low quality, watermark, deformed hands"
+  },
+  "raw": {
+    "styleSuffix": "",
+    "negativePrompt": "low quality, watermark"
+  }
+}

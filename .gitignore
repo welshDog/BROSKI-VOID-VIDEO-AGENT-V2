@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+
+# pipeline output
+output/
+workspace/*.md
+workspace/*.mp4
+*.mp4
+
+__pycache__/
+.DS_Store
+*.log
