@@ -1,0 +1,35 @@
+# LongCat-Video-Avatar inference service — GPU container.
+# Pinned versions MATTER: Python 3.10, torch 2.6.0+cu124, flash-attn 2.7.4.post1.
+# If flash_attn starts compiling from source, grab the prebuilt wheel from
+# flash-attn GitHub releases (cu124 / torch2.6 / py310) instead.
+FROM python:3.10-slim
+
+ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ffmpeg libgl1 libglib2.0-0 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# LongCat-Video repo (avatar layer lives inside it)
+WORKDIR /opt/longcat
+RUN git clone --single-branch --branch main \
+    https://github.com/meituan-longcat/LongCat-Video .
+
+# Pinned install chain — keep in this order
+RUN pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0 \
+    --index-url https://download.pytorch.org/whl/cu124 \
+    && pip install ninja psutil packaging \
+    && pip install flash_attn==2.7.4.post1 \
+    && pip install -r requirements.txt \
+    && pip install librosa soundfile \
+    && pip install -r requirements_avatar.txt \
+    && pip install fastapi uvicorn python-multipart
+
+COPY avatar/longcat-server.py /app/longcat-server.py
+
+ENV LONGCAT_REPO_DIR=/opt/longcat \
+    LONGCAT_CHECKPOINT_DIR=/weights/LongCat-Video-Avatar
+
+WORKDIR /app
+EXPOSE 8000
+CMD ["python", "-u", "longcat-server.py"]
